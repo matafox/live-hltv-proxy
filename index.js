@@ -1,7 +1,7 @@
 import express from 'express'
 import cloudscraper from 'cloudscraper'
-import pkg from 'hltv'            // імпортуємо весь пакет
-const { HLTV, parseMatch } = pkg   // дістаємо потрібні функції
+import pkg from 'hltv'
+const { parseMatch } = pkg
 
 const app = express()
 const cache = new Map()
@@ -29,11 +29,11 @@ app.get('/hltv/:id', async (req, res) => {
   }
 
   try {
-    // 1) Отримуємо HTML із Cloudflare-обходом
+    // 1) Завантажуємо HTML через cloudscraper (обхід Cloudflare)
     const url = `https://www.hltv.org/matches/${id}/`
-    const html = await cloudscraper.get(url)
+    const html = await cloudscraper(url)
 
-    // 2) Парсимо HTML через внутрішній парсер
+    // 2) Парсимо отриманий HTML
     const match = parseMatch(html)
 
     // Рахуємо виграні карти
@@ -44,7 +44,7 @@ app.get('/hltv/:id', async (req, res) => {
       else if (m.winnerTeam.id === match.team2?.id) right++
     }
 
-    // Здобуваємо live-раунди
+    // Отримуємо live-раунди
     let rounds = null
     const liveMap = (match.maps || []).find(m => m.status === 'live' || m.live)
     if (liveMap) {
@@ -63,6 +63,7 @@ app.get('/hltv/:id', async (req, res) => {
       live: !!match.live
     }
 
+    // Кешуємо і віддаємо
     cache.set(key, { t: now, v: payload })
     res.json(payload)
 
@@ -75,5 +76,6 @@ app.get('/hltv/:id', async (req, res) => {
   }
 })
 
+// Старт сервера
 const PORT = process.env.PORT || 8080
 app.listen(PORT, () => console.log('HLTV proxy listening on', PORT))
