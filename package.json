@@ -2,7 +2,8 @@
   "type": "module",
   "dependencies": {
     "express": "^4",
-    "hltv": "^3"
+    "hltv": "^3",
+    "cloudscraper": "^1.2.1"  // ← додаємо це
   },
   "scripts": {
     "start": "node index.js"
