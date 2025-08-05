@@ -1,0 +1,10 @@
+{
+  "type": "module",
+  "dependencies": {
+    "express": "^4",
+    "hltv": "^3"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
