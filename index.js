@@ -1,7 +1,7 @@
 import express from 'express'
-import * as cloudscraper from 'cloudscraper'  // імпортуємо все
-import pkg from 'hltv'                        // CommonJS із hltv
-const { parseMatch } = pkg                   // деструктуризуємо парсер
+import cloudscraper from 'cloudscraper'
+import pkg from 'hltv'
+const { parseMatch } = pkg
 
 const app = express()
 const cache = new Map()
@@ -16,7 +16,7 @@ app.use((_, res, next) => {
 // Healthcheck
 app.get('/health', (_, res) => res.send('ok'))
 
-// Основний ендпоінт
+// Endpoint для live-даних
 app.get('/hltv/:id', async (req, res) => {
   const id = Number(req.params.id)
   if (!id) return res.status(400).json({ error: 'bad id' })
@@ -29,11 +29,11 @@ app.get('/hltv/:id', async (req, res) => {
   }
 
   try {
-    // 1) Завантажуємо HTML через cloudscraper.get()
+    // 1) Завантажуємо HTML через cloudscraper (обхід Cloudflare)
     const url = `https://www.hltv.org/matches/${id}/`
-    const html = await cloudscraper.get(url)
+    const html = await cloudscraper({ uri: url, method: 'GET' })
 
-    // 2) Розбираємо HTML через parseMatch
+    // 2) Парсимо отриманий HTML
     const match = parseMatch(html)
 
     // Рахуємо виграні карти
@@ -64,7 +64,7 @@ app.get('/hltv/:id', async (req, res) => {
       live: !!match.live
     }
 
-    // Кешуємо і повертаємо
+    // Кешуємо й повертаємо
     cache.set(key, { t: now, v: payload })
     res.json(payload)
 
