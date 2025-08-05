@@ -2,7 +2,7 @@ import express from 'express'
 import { createRequire } from 'module'
 import pkg from 'hltv'
 
-// Підтягнемо cloudscraper корректно з CommonJS
+// Підтягнемо CommonJS-модуль cloudscraper
 const require = createRequire(import.meta.url)
 const cloudscraper = require('cloudscraper')
 
@@ -10,9 +10,9 @@ const { parseMatch } = pkg
 
 const app = express()
 const cache = new Map()
-const TTL = 10_000 // 10 секунд кешу
+const TTL = 10_000 // 10 секунд
 
-// Дозволяємо CORS
+// CORS
 app.use((_, res, next) => {
   res.set('Access-Control-Allow-Origin', '*')
   next()
@@ -21,7 +21,7 @@ app.use((_, res, next) => {
 // Healthcheck
 app.get('/health', (_, res) => res.send('ok'))
 
-// Ендпоінт /hltv/:id
+// Основний ендпоінт
 app.get('/hltv/:id', async (req, res) => {
   const id = Number(req.params.id)
   if (!id) return res.status(400).json({ error: 'bad id' })
@@ -34,11 +34,17 @@ app.get('/hltv/:id', async (req, res) => {
   }
 
   try {
-    // 1) Завантажуємо HTML через cloudscraper.get()
     const url = `https://www.hltv.org/matches/${id}/`
-    const html = await cloudscraper.get(url)
 
-    // 2) Парсимо через hltv-парсер
+    // Завантажуємо HTML через cloudscraper із callback-обгорткою
+    const html = await new Promise((resolve, reject) => {
+      cloudscraper({ uri: url, method: 'GET' }, (err, _response, body) => {
+        if (err) return reject(err)
+        resolve(body)
+      })
+    })
+
+    // Парсимо через hltv-парсер
     const match = parseMatch(html)
 
     // Рахуємо виграні карти
@@ -49,7 +55,7 @@ app.get('/hltv/:id', async (req, res) => {
       else if (m.winnerTeam.id === match.team2?.id) right++
     }
 
-    // Live-раунди
+    // Поточні раунди на live-карті
     let rounds = null
     const liveMap = (match.maps || []).find(m => m.status === 'live' || m.live)
     if (liveMap) {
@@ -60,16 +66,14 @@ app.get('/hltv/:id', async (req, res) => {
       }
     }
 
-    // Формуємо відповідь
     const payload = {
-      teams:    { left: match.team1?.name,  right: match.team2?.name },
-      series:   { left, right },
+      teams:     { left: match.team1?.name,  right: match.team2?.name },
+      series:    { left, right },
       rounds,
       mapNumber: (match.maps || []).filter(m => m.winnerTeam || m.status === 'live' || m.live).length || 1,
-      live:     !!match.live
+      live:      !!match.live
     }
 
-    // Кешуємо та повертаємо
     cache.set(key, { t: now, v: payload })
     res.json(payload)
 
@@ -82,6 +86,5 @@ app.get('/hltv/:id', async (req, res) => {
   }
 })
 
-// Старт
 const PORT = process.env.PORT || 8080
 app.listen(PORT, () => console.log(`HLTV proxy listening on ${PORT}`))
