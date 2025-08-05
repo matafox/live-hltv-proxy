@@ -57,8 +57,11 @@ app.get('/hltv/:id', async (req, res) => {
     res.json(payload)
   } catch (e) {
 
-    console.error('HLTV error:', e?.message || e)
-    res.status(500).json({ error: 'hltv failed' })
+      console.error('HLTV proxy error:', e)
+    res.status(500).json({
+      error:  'hltv failed',
+     detail: e?.message || String(e)
+    })
   }
 })
 
